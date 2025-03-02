@@ -9,6 +9,7 @@ use App\Http\Requests\LoginRequest;
 
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\RegisterRequest;
 
@@ -62,23 +63,39 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         try {
-            $validated = $request->validated();
+            // $validated = $request->validated();
 
-            $user = User::where('email', $validated['email'])->first();
+            // $user = User::where('email', $validated['email'])->first();
 
-            if (!$user || !Hash::check($validated['password'], $user->password)) {
-                Log::warning('Invalid login attempt', ['email' => $validated['email']]);
-                return response()->json(['message' => 'Invalid credentials'], 401);
+            // if (!$user || !Hash::check($validated['password'], $user->password)) {
+            //     Log::warning('Invalid login attempt', ['email' => $validated['email']]);
+            //     return response()->json(['message' => 'Invalid credentials'], 401);
+            // }
+
+            // $token = $user->createToken('auth_token')->plainTextToken;
+
+            // Log::info('User logged in successfully', ['email' => $validated['email']]);
+
+            // return response()->json([
+            //     'access_token' => $token,
+            //     'token_type' => 'Bearer',
+            // ]);
+
+            if (Auth::attempt($request->only('email', 'password'))) {
+                $user = Auth::user();
+                $token = $user->createToken('auth_token')->plainTextToken;
+        
+                return response()->json([
+                    'access_token' => $token,
+                    'token_type' => 'Bearer',
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => strtolower($user->getRoleNames()->first()),// Retrieve the user's role
+                    ],
+                ]);
             }
-
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            Log::info('User logged in successfully', ['email' => $validated['email']]);
-
-            return response()->json([
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ]);
 
         } catch (Exception $e) {
             Log::error('Login failed', ['error' => $e->getMessage()]);

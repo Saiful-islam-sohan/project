@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
 
 Route::get('/user', function (Request $request) {
@@ -10,14 +11,29 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:login-register');
+
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login-register');
+
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
 
+
+
+
 Route::middleware('auth:sanctum')->group(function () {
-    Route::apiResource('products', ProductController::class)->except(['index', 'show']);
+   
+    Route::get('/products', [ProductController::class, 'index']);
+
+    
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/products', [ProductController::class, 'store']);
+        Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+    });
 });
 
-// Public routes
-Route::apiResource('products', ProductController::class)->only(['index', 'show']);
+Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
+    Route::get('/users', [HomeController::class, 'index']);
+});
 
+// Route::get('/index-product', [ProductController::class, 'index']);
