@@ -2,39 +2,60 @@
 
 namespace App\Http\Controllers\Api;
 
+use Exception;
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Requests\LoginRequest;
+
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\RegisterRequest;
-use Exception;
+
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request)
     {
         try {
-            $validated = $request->validated();
+            Log::info('Starting user registration.');
 
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-            ]);
+           
+            $validatedData = $request->validated();
+
+           
+            Log::info('Validated Data:', $validatedData);
+
+           
+            if (User::where('email', $validatedData['email'])->exists()) {
+                return response()->json(['message' => 'Email is already registered.'], 409);
+            }
+
+            
+            $validatedData['password'] = Hash::make($validatedData['password']);
+
+            
+            $user = User::create($validatedData);
+
+            if (!$user) {
+                Log::error('User creation failed.');
+                return response()->json(['message' => 'User registration failed'], 500);
+            }
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            Log::info('User registered successfully', ['email' => $validated['email']]);
+            Log::info('User registered successfully.', ['user_id' => $user->id]);
 
             return response()->json([
-                'access_token' => $token,
-                'token_type' => 'Bearer',
+                'user' => $user,
+                'token' => $token,
             ], 201);
+        } catch (\Throwable $e) {
+            Log::error('Registration error.', ['error' => $e->getMessage()]);
 
-        } catch (Exception $e) {
-            Log::error('Registration failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Registration failed'], 500);
+            return response()->json([
+                'message' => 'An error occurred during registration. Please try again later.',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
